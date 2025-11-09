@@ -4,12 +4,12 @@ import type { NearbyPlace } from '../types';
 
 // --- CONFIGURACIÓN ---
 const firebaseConfig = {
-    apiKey: "AIzaSyCQVy5kEiTwgAc6Du0qwIJA9OTIoEcihAw",
-    authDomain: "scout-ai-world.firebaseapp.com",
-    projectId: "scout-ai-world",
-    storageBucket: "scout-ai-world.appspot.com",
-    messagingSenderId: "730353083039",
-    appId: "1:730353083039:web:8383255a702d07baa338aa"
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
 };
 
 // --- INICIALIZACIÓN DE FIREBASE ---
