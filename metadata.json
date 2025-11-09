@@ -1,0 +1,7 @@
+{
+  "name": "Scout AI",
+  "description": "An AI-powered tourism app. Upload a photo of a landmark, and the app will identify it, provide its history using Google Search, and create a narrated audio guide using Text-to-Speech.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
