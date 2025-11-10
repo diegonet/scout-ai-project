@@ -1,4 +1,4 @@
-import { GoogleGenAI, Chat, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Chat, Type, Modality, GenerateContentResponse } from "@google/genai";
 import type { TourPlan, NearbyPlace } from '../types';
 
 const API_KEY = process.env.API_KEY;
@@ -10,6 +10,43 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const callGeminiWithRetry = async <T>(
+    apiCall: () => Promise<T>,
+    maxRetries = 3
+): Promise<T> => {
+    let attempt = 0;
+    while (attempt < maxRetries) {
+        try {
+            return await apiCall();
+        } catch (error) {
+            attempt++;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            // Check for transient error conditions
+            const isTransientError = 
+                errorMessage.includes('429') || // Too Many Requests
+                errorMessage.includes('503') || // Service Unavailable
+                errorMessage.includes('UNAVAILABLE') || // gRPC code for unavailable
+                errorMessage.toLowerCase().includes('model is overloaded') ||
+                errorMessage.includes('RESOURCE_EXHAUSTED');
+
+            if (isTransientError && attempt < maxRetries) {
+                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+                console.warn(`Transient API error detected. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${attempt}/${maxRetries})`);
+                await sleep(delay);
+            } else {
+                console.error(`API call failed after ${attempt} attempts.`, error);
+                throw error; // Re-throw the error if it's not transient or retries are exhausted
+            }
+        }
+    }
+    // This line should not be reachable if maxRetries > 0, but is a fallback.
+    throw new Error('API call failed after exhausting all retries.');
+};
+
 
 const fileToGenerativePart = async (file: File) => {
     const base64EncodedDataPromise = new Promise<string>((resolve) => {
@@ -41,10 +78,10 @@ export const identifyLandmark = async (
     const identificationModel = 'gemini-2.5-flash';
     const identificationPrompt = `Identify the landmark in this image. Respond with only the name of the landmark and its location (e.g., "Eiffel Tower, Paris, France"). If it's not a famous landmark, respond with the single phrase "Unknown Landmark".`;
     
-    const identificationResponse = await ai.models.generateContent({
+    const identificationResponse = await callGeminiWithRetry(() => ai.models.generateContent({
         model: identificationModel,
         contents: { parts: [imagePart, { text: identificationPrompt }] },
-    });
+    }));
 
     const landmarkName = identificationResponse.text.trim();
 
@@ -56,10 +93,10 @@ export const identifyLandmark = async (
     const textModel = 'gemini-2.5-pro';
     const historyPrompt = `Provide a concise and engaging history of ${landmarkName} in ${language}. The history should be about 150-200 words long, suitable for a tourist audio guide. Format it into 2-3 short paragraphs.`;
 
-    const historyResponse = await ai.models.generateContent({
+    const historyResponse = await callGeminiWithRetry(() => ai.models.generateContent({
         model: textModel,
         contents: historyPrompt
-    });
+    }));
     const historyText = historyResponse.text.trim();
 
     onProgress('Creating audio guide...');
@@ -68,7 +105,7 @@ export const identifyLandmark = async (
     // Instructions about voice style are better handled by config or are implicit.
     const ttsPrompt = historyText;
 
-    const audioResponse = await ai.models.generateContent({
+    const audioResponse = await callGeminiWithRetry(() => ai.models.generateContent({
         model: audioModel,
         contents: [{ parts: [{ text: ttsPrompt }] }],
         config: {
@@ -79,7 +116,7 @@ export const identifyLandmark = async (
                 },
             },
         },
-    });
+    }));
 
     const audioData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!audioData) {
@@ -97,10 +134,10 @@ export const fetchFunFact = async (landmarkName: string, language: string): Prom
     const model = 'gemini-2.5-flash';
     const prompt = `Tell me one surprising or little-known fun fact about ${landmarkName}. The fact should be in ${language}.`;
     
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model,
         contents: prompt
-    });
+    }));
 
     return response.text.trim();
 };
@@ -116,11 +153,15 @@ export const createChatSession = (systemInstruction: string): Chat => {
     return chat;
 };
 
+export const sendChatMessage = async (chat: Chat, message: string): Promise<GenerateContentResponse> => {
+    return callGeminiWithRetry(() => chat.sendMessage({ message }));
+};
+
 export const generateTourPlan = async (location: string, language: string): Promise<TourPlan> => {
     const model = 'gemini-2.5-pro';
     const prompt = `Create a one-day tour plan for a tourist visiting ${location}. The plan should be exciting and cover a good mix of activities. Provide a title for the plan. For morning, afternoon, and evening, provide an activity and a short, enticing description. For lunch and dinner, suggest a type of cuisine or a specific restaurant and a short description. The entire plan should be in ${language}.`;
 
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model,
         contents: prompt,
         config: {
@@ -174,7 +215,7 @@ export const generateTourPlan = async (location: string, language: string): Prom
                 required: ["title", "location", "morning", "lunch", "afternoon", "evening", "dinner"]
             }
         }
-    });
+    }));
 
     const jsonText = response.text.trim();
     try {
@@ -201,7 +242,7 @@ export const findNearbyPlaces = async (
 
     const prompt = `Find the 6 most interesting and diverse tourist points of interest near the given location.${exclusionPrompt} For each place, provide its name, a concise one-sentence description, and a category from this list: "Museum", "Park", "Restaurant", "Historic Site", "Cafe", "Landmark", "Shopping". The response must be in ${language}. Respond ONLY with a valid JSON array of objects with "name", "description", and "category" keys. If no relevant places are found, return an empty JSON array []. Do not add any conversational text or markdown formatting.`;
 
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model,
         contents: prompt,
         config: {
@@ -215,7 +256,7 @@ export const findNearbyPlaces = async (
                 },
             },
         },
-    });
+    }));
 
     const rawText = response.text.trim();
     const cleanedText = rawText.replace(/^```(json)?\s*/, '').replace(/```$/, '').trim();
@@ -252,8 +293,6 @@ export const findNearbyPlaces = async (
     });
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const generateAudioForText = async (text: string, language: string): Promise<string> => {
     const audioModel = 'gemini-2.5-flash-preview-tts';
     // The TTS model works best with just the text to be spoken.
@@ -261,7 +300,7 @@ export const generateAudioForText = async (text: string, language: string): Prom
     // Adding instructions to the text can sometimes lead to failures.
     const ttsPrompt = text;
 
-    const audioResponse = await ai.models.generateContent({
+    const audioResponse = await callGeminiWithRetry(() => ai.models.generateContent({
         model: audioModel,
         contents: [{ parts: [{ text: ttsPrompt }] }],
         config: {
@@ -272,7 +311,7 @@ export const generateAudioForText = async (text: string, language: string): Prom
                 },
             },
         },
-    });
+    }));
 
     const audioData = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!audioData) {
@@ -287,10 +326,10 @@ export const generateDescriptionForPlace = async (placeName: string, location: s
     const model = 'gemini-2.5-flash';
     const prompt = `Provide a concise and engaging one-sentence description for "${placeName}" in ${location}, suitable for a tourist app. Respond in ${language} with only the description sentence.`;
     
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model,
         contents: prompt
-    });
+    }));
 
     return response.text.trim();
 };
@@ -311,7 +350,7 @@ export const translatePlaceDetails = async (
     ${JSON.stringify(places)}
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
         model,
         contents: prompt,
         config: {
@@ -328,7 +367,7 @@ export const translatePlaceDetails = async (
                 }
             }
         }
-    });
+    }));
 
     const jsonText = response.text.trim();
     try {
@@ -347,42 +386,24 @@ export const translatePlaceDetails = async (
     }
 };
 
-export const generateImageForPlace = async (placeName: string, location: string, maxRetries = 3): Promise<string> => {
-    let attempt = 0;
-    while (attempt < maxRetries) {
-        try {
-            const model = 'gemini-2.5-flash-image';
-            const prompt = `A beautiful, photorealistic, high-quality photograph of "${placeName}", a tourist-friendly view of this ${location}. Sunny day.`;
+export const generateImageForPlace = async (placeName: string, location: string): Promise<string> => {
+    const model = 'gemini-2.5-flash-image';
+    const prompt = `A beautiful, photorealistic, high-quality photograph of "${placeName}", a tourist-friendly view of this ${location}. Sunny day.`;
 
-            const response = await ai.models.generateContent({
-                model,
-                contents: {
-                    parts: [{ text: prompt }],
-                },
-                config: {
-                    responseModalities: [Modality.IMAGE],
-                },
-            });
+    const response = await callGeminiWithRetry(() => ai.models.generateContent({
+        model,
+        contents: {
+            parts: [{ text: prompt }],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE],
+        },
+    }));
 
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    return part.inlineData.data;
-                }
-            }
-            throw new Error(`No image data in response for ${placeName}`);
-        } catch (error) {
-            attempt++;
-            const errorMessage = (error instanceof Error) ? error.message : String(error);
-
-            if ((errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) && attempt < maxRetries) {
-                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
-                console.warn(`Rate limit hit for "${placeName}". Retrying in ${Math.round(delay / 1000)}s... (Attempt ${attempt}/${maxRetries})`);
-                await sleep(delay);
-            } else {
-                console.error(`Failed to generate image for "${placeName}" after ${attempt} attempts.`, error);
-                throw error;
-            }
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+            return part.inlineData.data;
         }
     }
-    throw new Error(`Failed to generate image for "${placeName}" after exhausting all retries.`);
+    throw new Error(`No image data in response for ${placeName}`);
 };

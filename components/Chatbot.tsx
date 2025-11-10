@@ -1,22 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createChatSession } from '../services/geminiService';
+import { createChatSession, sendChatMessage } from '../services/geminiService';
 import type { Chat } from '@google/genai';
 import type { ChatMessage } from '../types';
 import { PaperAirplaneIcon, UserCircleIcon, SparklesIcon, LoaderIcon } from './Icons';
 import { useTranslation } from '../contexts/LanguageContext';
 
+/**
+ * Props for the Chatbot component.
+ * @interface ChatbotProps
+ * @property {string} landmarkName - The name of the landmark to use in the system instruction for the chat.
+ */
 interface ChatbotProps {
   landmarkName: string;
 }
 
+
+/**
+ * The Chatbot component provides a conversational interface powered by the Gemini API.
+ * It initializes a chat session with a system instruction based on the current landmark.
+ * @param {ChatbotProps} props - Component props.
+ * @returns {React.FC} The Chatbot component.
+ */
 export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
+  // --- State Management ---
+  /** Holds the active chat session object from the Gemini SDK. */
   const [chat, setChat] = useState<Chat | null>(null);
+  /** Array of messages exchanged in the chat. */
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  /** The current text input from the user. */
   const [input, setInput] = useState('');
+  /** Flag indicating if the chatbot is waiting for a response. */
   const [isLoading, setIsLoading] = useState(true);
+  /** Ref to the chat body container for controlling scroll position. */
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  /** Translation hook. */
   const { t } = useTranslation();
 
+  /**
+   * Effect hook to initialize the chat session on mount or when the landmarkName or translation function changes.
+   * Creates a system instruction and sends the initial welcome message.
+   */
   useEffect(() => {
     const initializeChat = async () => {
       setIsLoading(true);
@@ -27,7 +50,7 @@ export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
       const chatSession = createChatSession(systemInstruction);
       setChat(chatSession);
       
-      const response = await chatSession.sendMessage({ message: initialMessage });
+      const response = await sendChatMessage(chatSession, initialMessage);
       
       setMessages([{ role: 'model', text: response.text }]);
       setIsLoading(false);
@@ -36,6 +59,9 @@ export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
     initializeChat();
   }, [landmarkName, t]);
 
+  /**
+   * Effect hook to automatically scroll the chat body to the bottom whenever new messages are added.
+   */
   useEffect(() => {
     if (chatBodyRef.current) {
       // Set the scrollTop to the full scrollHeight to scroll to the bottom.
@@ -44,6 +70,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
     }
   }, [messages]);
 
+
+  /**
+   * Handles the form submission to send a new message to the chatbot.
+   * Updates messages state, sends the message, and handles the response or error.
+   * @param {React.FormEvent} e - The form event.
+   */
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !chat || isLoading) return;
@@ -54,7 +86,8 @@ export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
     setIsLoading(true);
 
     try {
-      const response = await chat.sendMessage({ message: input });
+      // The actual message sent to the Gemini chat session
+      const response = await sendChatMessage(chat, input);
       const modelMessage: ChatMessage = { role: 'model', text: response.text };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error) {
@@ -66,6 +99,12 @@ export const Chatbot: React.FC<ChatbotProps> = ({ landmarkName }) => {
     }
   };
 
+  /**
+   * Renders a single message bubble in the chat.
+   * @param {object} props - Component props.
+   * @param {ChatMessage} props.message - The message object containing the role and text.
+   * @returns {React.FC} The MessageBubble component.
+   */
   const MessageBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
     const isUser = message.role === 'user';
     return (

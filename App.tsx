@@ -12,10 +12,29 @@ import { useTheme } from './contexts/ThemeContext';
 import { CameraIcon, CalendarDaysIcon, MapPinIcon, SunIcon, MoonIcon, StarIcon, QuestionMarkCircleIcon, XIcon } from './components/Icons';
 import { SUPPORTED_LANGUAGES } from './utils/translations';
 
-
+/**
+ * Defines the possible states of the main application flow.
+ * 'idle': Initial state, ready for image upload.
+ * 'loading': An operation is in progress (e.g., landmark identification).
+ * 'result': Landmark identification is complete and results are displayed.
+ */
 type AppState = 'idle' | 'loading' | 'result';
+
+/**
+ * Defines the currently active view/feature of the application.
+ * 'landmark': The default view for identifying landmarks.
+ * 'planner': The tour planning feature.
+ * 'nearby': The nearby places feature.
+ * 'topPlaces': The top places feature.
+ */
 type ActiveView = 'landmark' | 'planner' | 'nearby' | 'topPlaces';
 
+/**
+ * Renders a language selection dropdown.
+ * @param {object} props - Component props.
+ * @param {boolean} props.disabled - If true, the selector is disabled.
+ * @returns {React.FC} The LanguageSelector component.
+ */
 const LanguageSelector: React.FC<{ disabled: boolean }> = ({ disabled }) => {
     const { language, changeLanguage } = useTranslation();
 
@@ -44,6 +63,12 @@ const LanguageSelector: React.FC<{ disabled: boolean }> = ({ disabled }) => {
     );
 };
 
+/**
+ * Renders a button to toggle between light and dark themes.
+ * @param {object} props - Component props.
+ * @param {boolean} props.disabled - If true, the toggle button is disabled.
+ * @returns {React.FC} The ThemeToggle component.
+ */
 const ThemeToggle: React.FC<{ disabled: boolean }> = ({ disabled }) => {
     const { theme, toggleTheme } = useTheme();
 
@@ -63,6 +88,13 @@ const ThemeToggle: React.FC<{ disabled: boolean }> = ({ disabled }) => {
     );
 };
 
+/**
+ * Renders a modal window with help information about the application features.
+ * @param {object} props - Component props.
+ * @param {boolean} props.isOpen - Controls the visibility of the modal.
+ * @param {function} props.onClose - Function to be called when the modal is requested to close.
+ * @returns {React.FC | null} The HelpModal component or null if not open.
+ */
 const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const { t } = useTranslation();
 
@@ -117,8 +149,13 @@ const HelpModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen,
     );
 };
 
-
+/**
+ * The main application component for the Landmark Identifier and Planner application.
+ * Manages the application state, user flow, landmark identification, and view switching.
+ * @returns {React.FC} The main App component.
+ */
 const App: React.FC = () => {
+// --- State Management ---
   const [appState, setAppState] = useState<AppState>('idle');
   const [activeView, setActiveView] = useState<ActiveView>('landmark');
   const [landmarkData, setLandmarkData] = useState<LandmarkData | null>(null);
@@ -128,8 +165,15 @@ const App: React.FC = () => {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const { t, language } = useTranslation();
   const [isInitialMount, setIsInitialMount] = useState(true);
+
+  // Ref for scrolling to the result view
   const mainRef = useRef<HTMLElement>(null);
 
+    /**
+   * Handles the image selection and starts the landmark identification process.
+   * Updates app state to 'loading' and then to 'result' or 'idle' on error.
+   * @param {File} file - The image file uploaded by the user.
+   */
   const handleImageSelect = async (file: File) => {
     setAppState('loading');
     setError(null);
@@ -148,6 +192,9 @@ const App: React.FC = () => {
     }
   };
   
+  /**
+   * Resets the application state back to 'idle' (image upload).
+   */
   const handleReset = () => {
     setAppState('idle');
     setLandmarkData(null);
@@ -157,6 +204,10 @@ const App: React.FC = () => {
     }
   };
 
+   /**
+   * useEffect hook to handle automatic re-identification/translation when the language changes,
+   * but only after the initial mount and if a result is currently displayed.
+   */
   useEffect(() => {
     if (isInitialMount) {
         setIsInitialMount(false);
@@ -169,11 +220,15 @@ const App: React.FC = () => {
         setIsTranslating(true);
         setError(null);
         try {
+            // Re-fetch the image from the temporary URL and convert it back to a File
             const response = await fetch(landmarkData.userImageUrl);
             const blob = await response.blob();
             const file = new File([blob], "landmark_image.jpg", { type: blob.type });
 
+            // Re-run identification with the new language
             const result = await identifyLandmark(file, language, () => {});
+
+            // Preserve the original image URL
             setLandmarkData({ ...result, userImageUrl: landmarkData.userImageUrl });
         } catch (err) {
             const message = err instanceof Error ? err.message : t('errorProcessing');
@@ -198,6 +253,10 @@ const App: React.FC = () => {
   }, [appState]);
 
 
+  /**
+   * Renders the component corresponding to the current active view.
+   * @returns {React.ReactNode} The active view component.
+   */
   const renderActiveView = () => {
     switch (activeView) {
         case 'landmark':
@@ -213,6 +272,10 @@ const App: React.FC = () => {
     }
   };
 
+   /**
+   * Renders the different states of the Landmark Finder view ('idle', 'loading', 'result').
+   * @returns {React.ReactNode} The content for the Landmark Finder view.
+   */
   const renderLandmarkFinder = () => {
     switch (appState) {
       case 'loading':
@@ -232,6 +295,15 @@ const App: React.FC = () => {
     }
   };
 
+
+  /**
+   * Reusable component for the footer tab buttons.
+   * @param {object} props - Component props.
+   * @param {ActiveView} props.view - The view to switch to on click.
+   * @param {React.ReactNode} props.icon - The icon element for the button.
+   * @param {string} props.label - The translated label for the button.
+   * @returns {React.FC} The TabButton component.
+   */
   const TabButton: React.FC<{ view: ActiveView, icon: React.ReactNode, label: string }> = ({ view, icon, label }) => (
     <button
         onClick={() => {

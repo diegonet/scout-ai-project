@@ -1,3 +1,8 @@
+/**
+ * Main entry point of the React application.
+ * Renders the root component (App) wrapped in necessary context providers (LanguageProvider, ThemeProvider).
+ */
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
