@@ -2,14 +2,32 @@ import React from 'react';
 import { CheckCircleIcon, LoaderIcon, CircleIcon } from './Icons';
 import { useTranslation } from '../contexts/LanguageContext';
 
+/**
+ * Defines the possible status for a step in the loading process.
+ * 'completed': The step is finished.
+ * 'in-progress': The step is currently running.
+ * 'pending': The step has not started yet.
+ */
+
 type StepStatus = 'completed' | 'in-progress' | 'pending';
 
+/**
+ * Determines the status of a specific step based on the overall progress.
+ * @param {number} stepIndex - The index of the step to check (0-based).
+ * @param {number} currentStepIndex - The index of the step that is currently active (0-based).
+ * @returns {StepStatus} The determined status ('completed', 'in-progress', or 'pending').
+ */
 const getStepStatus = (stepIndex: number, currentStepIndex: number): StepStatus => {
   if (stepIndex < currentStepIndex) return 'completed';
   if (stepIndex === currentStepIndex) return 'in-progress';
   return 'pending';
 };
 
+
+/**
+ * Displays an icon corresponding to the step's status.
+ * @param {StatusIconProps} props - The component props.
+ */
 const StatusIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
   switch (status) {
     case 'completed':
@@ -21,6 +39,13 @@ const StatusIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
   }
 };
 
+
+/**
+ * A component that displays a multi-step loading progress bar.
+ * The active step is determined by matching a keyword in the current message.
+ * @param {object} props - The component props.
+ * @param {string} props.message - The current loading message string, which contains a keyword to identify the active step.
+ */
 export const LoadingState: React.FC<{ message: string }> = ({ message }) => {
   const { t } = useTranslation();
 

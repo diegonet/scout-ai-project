@@ -3,14 +3,31 @@ import React, { useRef } from 'react';
 import { CameraIcon } from './Icons';
 import { useTranslation } from '../contexts/LanguageContext';
 
+/**
+ * Props for the ImageUploader component.
+ */
 interface ImageUploaderProps {
+  /** * Callback function executed when a valid image file is selected.
+   * @param {File} file - The selected image file object.
+   */
   onImageSelect: (file: File) => void;
 }
 
+/**
+ * A component that provides a styled button to trigger file selection 
+ * for image uploads. It handles file validation and calls a callback function
+ * with the selected image file.
+ * @param {ImageUploaderProps} props - The component props.
+ */
 export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
 
+  /**
+   * Handles the change event from the hidden file input.
+   * Validates the file type and passes the file to the onImageSelect callback.
+   * @param {React.ChangeEvent<HTMLInputElement>} event - The file input change event.
+   */
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
@@ -21,6 +38,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelect }) =
     }
   };
 
+  /**
+   * Triggers a click event on the hidden file input element.
+   */
   const handleClick = () => {
     fileInputRef.current?.click();
   };

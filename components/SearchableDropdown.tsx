@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronUpDownIcon } from './Icons';
 
+/**
+ * Defines the structure for an option within the searchable dropdown.
+ */
 interface DropdownOption {
     value: string;
     label: string;
 }
 
+/**
+ * Props for the SearchableDropdown component.
+ */
 interface SearchableDropdownProps {
     options: DropdownOption[];
     value: string;
@@ -14,6 +20,11 @@ interface SearchableDropdownProps {
     disabled?: boolean;
 }
 
+/**
+ * A reusable component that allows users to select an option from a list,
+ * with the ability to filter the list by typing into the input field.
+ * @param {SearchableDropdownProps} props - The component props.
+ */
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     options,
     value,

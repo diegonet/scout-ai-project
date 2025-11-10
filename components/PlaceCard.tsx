@@ -3,6 +3,13 @@ import { useTranslation } from '../contexts/LanguageContext';
 import { LoaderIcon, MuseumIcon, ParkIcon, CafeIcon, HistoricSiteIcon, ShoppingBagIcon, SparklesIcon, HeartIcon, PlayIcon, PauseIcon } from './Icons';
 import type { NearbyPlace } from '../types';
 
+/**
+ * Maps a place category string to a corresponding icon component.
+ * @param {object} props - The component props.
+ * @param {string} props.category - The category name (e.g., 'museum', 'park').
+ * @param {string} [props.className="w-5 h-5"] - Optional Tailwind CSS class names for styling the icon.
+ * @returns {React.FC} The appropriate icon component.
+ */
 export const CategoryIcon: React.FC<{ category: string, className?: string }> = ({ category, className = "w-5 h-5" }) => {
     const lowerCategory = category.toLowerCase();
     if (lowerCategory.includes('museum')) return <MuseumIcon className={className} />;
@@ -13,6 +20,11 @@ export const CategoryIcon: React.FC<{ category: string, className?: string }> = 
     return <SparklesIcon className={className} />;
 };
 
+/**
+ * A card component displaying information about a nearby place,
+ * including its image, category, description, and controls for
+ * toggling favorite status and playing/pausing audio.
+ */
 export const PlaceCard: React.FC<{ 
     place: NearbyPlace;
     isFavorite: boolean;
@@ -84,6 +96,10 @@ export const PlaceCard: React.FC<{
     );
 };
 
+/**
+ * A component representing a placeholder card used during loading states.
+ * It mimics the structure of a PlaceCard using animated elements (pulse effect).
+ */
 export const SkeletonCard: React.FC = () => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="w-full h-40 bg-gray-200 dark:bg-gray-700 animate-pulse"></div>

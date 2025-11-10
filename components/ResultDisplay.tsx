@@ -8,12 +8,21 @@ import { PlayIcon, PauseIcon, ArrowLeftIcon, GlobeAltIcon, LightBulbIcon, Loader
 import { useTranslation } from '../contexts/LanguageContext';
 import { SUPPORTED_LANGUAGES } from '../utils/translations';
 
+/**
+ * Props for the ResultDisplay component.
+ */
 interface ResultDisplayProps {
   data: LandmarkData;
   onReset: () => void;
   isTranslating: boolean;
 }
 
+/**
+ * A component that displays the detailed results after a landmark has been identified.
+ * It features the landmark's image, history (audio guide), controls for audio playback,
+ * fun fact fetching, sharing options, and an integrated chatbot.
+ * @param {ResultDisplayProps} props - The component props.
+ */
 export const ResultDisplay: React.FC<ResultDisplayProps> = ({ 
     data,
     onReset,
@@ -58,6 +67,11 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
     }
   };
 
+  /**
+   * Copies the landmark's name and history to the user's clipboard for sharing.
+   * Provides visual feedback on success.
+   */
+
   const handleCopyToClipboard = async () => {
     const shareText = t('shareText', { landmarkName: data.name, history: data.history });
     try {
@@ -76,6 +90,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
   const whatsappShareUrl = `https://wa.me/?text=${encodedShareText}`;
   const xShareUrl = `https://twitter.com/intent/tweet?text=${encodedShareText}`;
   
+  /**
+   * Stops audio playback when the component unmounts.
+   */
   useEffect(() => {
     return () => {
       audioPlayer.stop();
