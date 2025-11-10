@@ -9,6 +9,11 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+/**
+ * Determines the initial theme based on local storage preference or system preference.
+ * Defaults to 'light' if no preference is found or an error occurs.
+ * @returns {Theme} The initial theme state.
+ */
 const getInitialTheme = (): Theme => {
     try {
         const storedTheme = window.localStorage.getItem('scout-ai-theme');
@@ -25,7 +30,12 @@ const getInitialTheme = (): Theme => {
     return 'light';
 };
 
-
+/**
+ * Provides the current theme state and a function to toggle it to its children components.
+ * It also applies the theme class to the document root element (html tag).
+ * @param {object} props - The component props.
+ * @param {React.ReactNode} props.children - The child components to be wrapped by the provider.
+ */
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
@@ -56,6 +66,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 };
 
+/**
+ * Custom hook to easily access the theme context value.
+ * Throws an error if used outside of a ThemeProvider.
+ * @returns {ThemeContextValue} The current theme context object.
+ */
 export const useTheme = (): ThemeContextValue => {
     const context = useContext(ThemeContext);
     if (context === undefined) {

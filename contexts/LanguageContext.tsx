@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useCallback } from 'react';
 import { translations, SUPPORTED_LANGUAGES } from '../utils/translations';
 
+/**
+ * Defines the structure of the value provided by the LanguageContext.
+ */
 interface LanguageContextValue {
     language: string;
     changeLanguage: (language: string) => void;
@@ -9,6 +12,12 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
+/**
+ * Provides the language state and translation utilities to its children.
+ * It manages the current language and stores it in local storage.
+ * @param {object} props - The component props.
+ * @param {React.ReactNode} props.children - The child components to be wrapped by the provider.
+ */
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [language, setLanguage] = useState<string>(() => {
         try {
@@ -65,6 +74,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 };
 
+/**
+ * Custom hook to easily access the language context value.
+ * Throws an error if used outside of a LanguageProvider.
+ * @returns {LanguageContextValue} The current language context object.
+ */
 export const useTranslation = (): LanguageContextValue => {
     const context = useContext(LanguageContext);
     if (context === undefined) {
